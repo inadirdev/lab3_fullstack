@@ -1,0 +1,220 @@
+const parkingAreas = {
+  faculty_lot: {
+    name: "Faculty Parking Lot A",
+    allowedOwners: ["faculty"],
+    totalSpaces: 50,
+    availableSpaces: 18,
+    requiresPermit: true,
+    visitorAllowed: false
+  },
+  student_lot: {
+    name: "Student Parking Lot B",
+    allowedOwners: ["student"],
+    totalSpaces: 120,
+    availableSpaces: 34,
+    requiresPermit: true,
+    visitorAllowed: false
+  },
+  staff_lot: {
+    name: "Staff Parking Lot C",
+    allowedOwners: ["staff", "faculty"],
+    totalSpaces: 40,
+    availableSpaces: 8,
+    requiresPermit: true,
+    visitorAllowed: false
+  },
+  visitor_lot: {
+    name: "Visitor Parking Zone",
+    allowedOwners: ["visitor"],
+    totalSpaces: 30,
+    availableSpaces: 0,
+    requiresPermit: false,
+    visitorAllowed: true
+  },
+  general_lot: {
+    name: "General Parking Area",
+    allowedOwners: ["faculty", "student", "staff"],
+    totalSpaces: 80,
+    availableSpaces: 22,
+    requiresPermit: false,
+    visitorAllowed: false
+  }
+};
+
+let request = {
+  vehicleType: "Sedan",
+  plateNumber: "ABC-1234",
+  ownerType: "student",
+  ownerName: "Usman Malik",
+  parkingAreaKey: "student_lot",
+  permitStatus: "valid",
+  universityIdValid: true,
+  specialAccess: false,
+  parkingTime: "10:30 AM"
+};
+
+function evaluateParking(req, areas) {
+  const area = areas[req.parkingAreaKey];
+  const checks = [];
+
+  const ownerAllowed = area.allowedOwners.includes(req.ownerType) ||
+    (req.ownerType === "visitor" && area.visitorAllowed);
+  checks.push({
+    label: "Owner Type Access",
+    passed: ownerAllowed,
+    detail: ownerAllowed
+      ? `${req.ownerType.charAt(0).toUpperCase() + req.ownerType.slice(1)} vehicles are permitted in ${area.name}.`
+      : `${req.ownerType.charAt(0).toUpperCase() + req.ownerType.slice(1)} vehicles are not allowed in ${area.name}. Restricted to: ${area.allowedOwners.join(", ")}.`
+  });
+
+  const permitOk = !area.requiresPermit || req.permitStatus === "valid";
+  checks.push({
+    label: "Parking Permit",
+    passed: permitOk,
+    detail: !area.requiresPermit
+      ? "No parking permit required for this area."
+      : req.permitStatus === "valid"
+        ? "Valid parking permit verified."
+        : req.permitStatus === "expired"
+          ? "Parking permit has expired. Renewal is required."
+          : "No valid parking permit found."
+  });
+
+  const idOk = req.ownerType === "visitor" || req.universityIdValid;
+  checks.push({
+    label: "University Identification",
+    passed: idOk,
+    detail: req.ownerType === "visitor"
+      ? "Visitor — university ID check not required."
+      : req.universityIdValid
+        ? "Valid university identification confirmed."
+        : "Invalid or missing university identification."
+  });
+
+  const spacesOk = area.availableSpaces > 0;
+  checks.push({
+    label: "Parking Availability",
+    passed: spacesOk,
+    detail: spacesOk
+      ? `${area.availableSpaces} of ${area.totalSpaces} spaces available.`
+      : `Parking area is full (${area.totalSpaces}/${area.totalSpaces} occupied).`
+  });
+
+  const visitorAuthNeeded = req.ownerType === "visitor" && area.visitorAllowed;
+  if (visitorAuthNeeded) {
+    checks.push({
+      label: "Visitor Authorization",
+      passed: req.specialAccess,
+      detail: req.specialAccess
+        ? "Visitor authorization has been approved."
+        : "Visitor authorization is required before entry."
+    });
+  }
+
+  let decision, decisionClass, message;
+
+  if (!spacesOk) {
+    decision = "Parking Area Full";
+    decisionClass = "decision-full";
+    message = `${area.name} has no available spaces. Please proceed to an alternative parking area.`;
+  } else if (visitorAuthNeeded && !req.specialAccess) {
+    decision = "Authorization Required";
+    decisionClass = "decision-auth";
+    message = "Visitor parking requires prior authorization from the campus security office. Please obtain approval before entering.";
+  } else if (!ownerAllowed) {
+    decision = "Parking Not Approved";
+    decisionClass = "decision-denied";
+    message = `Access denied. ${area.name} is restricted and does not allow ${req.ownerType} vehicles.`;
+  } else if (!permitOk) {
+    decision = "Parking Not Approved";
+    decisionClass = "decision-denied";
+    message = req.permitStatus === "expired"
+      ? "Entry denied due to expired parking permit. Please renew your permit at the transport office."
+      : "Entry denied. A valid parking permit is required for this area.";
+  } else if (!idOk) {
+    decision = "Parking Not Approved";
+    decisionClass = "decision-denied";
+    message = "Entry denied. Valid university identification is required for campus parking.";
+  } else {
+    decision = "Parking Approved";
+    decisionClass = "decision-approved";
+    message = `Vehicle ${req.plateNumber} (${req.vehicleType}) is authorized to enter ${area.name}. ${area.availableSpaces} space(s) remaining. Entry time: ${req.parkingTime}.`;
+  }
+
+  return { area, checks, decision, decisionClass, message };
+}
+
+function renderParkingSlots(available, total) {
+  let html = "";
+  for (let i = 0; i < total; i++) {
+    html += `<span class="parking-slot ${i < (total - available) ? 'slot-occupied' : 'slot-free'}" title="${i < (total - available) ? 'Occupied' : 'Free'}"></span>`;
+  }
+  return html;
+}
+
+function reevaluate() {
+  request.ownerType = document.getElementById("ownerType").value;
+  request.parkingAreaKey = document.getElementById("parkingArea").value;
+  request.permitStatus = document.getElementById("permitStatus").value;
+  request.universityIdValid = document.getElementById("idValid").value === "true";
+  render();
+}
+
+function render() {
+  document.getElementById("vehicleInfo").innerHTML = `
+    <table class="table table-borderless mb-0">
+      <tr><td class="text-muted">Owner</td><td><strong>${request.ownerName}</strong></td></tr>
+      <tr><td class="text-muted">Owner Type</td><td>${request.ownerType.charAt(0).toUpperCase() + request.ownerType.slice(1)}</td></tr>
+      <tr><td class="text-muted">Vehicle</td><td>${request.vehicleType}</td></tr>
+      <tr><td class="text-muted">Plate Number</td><td>${request.plateNumber}</td></tr>
+      <tr><td class="text-muted">Entry Time</td><td>${request.parkingTime}</td></tr>
+    </table>
+  `;
+
+  document.getElementById("parkingArea").innerHTML = Object.entries(parkingAreas).map(([key, a]) =>
+    `<option value="${key}" ${key === request.parkingAreaKey ? 'selected' : ''}>${a.name}</option>`
+  ).join("");
+
+  document.getElementById("ownerType").value = request.ownerType;
+  document.getElementById("permitStatus").value = request.permitStatus;
+  document.getElementById("idValid").value = request.universityIdValid.toString();
+
+  const result = evaluateParking(request, parkingAreas);
+  const area = result.area;
+
+  document.getElementById("areaInfo").innerHTML = `
+    <div class="row">
+      <div class="col-md-6">
+        <h5 class="fw-semibold">${area.name}</h5>
+        <p class="text-muted mb-2">Allowed: ${area.allowedOwners.join(", ")}${area.visitorAllowed ? ", visitors (with authorization)" : ""}</p>
+        <p class="mb-1"><strong>${area.availableSpaces}</strong> / ${area.totalSpaces} spaces available</p>
+        <div class="progress mb-2" style="height:10px">
+          <div class="progress-bar ${area.availableSpaces === 0 ? 'bg-danger' : 'bg-success'}" style="width:${(area.availableSpaces / area.totalSpaces) * 100}%"></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <small class="text-muted d-block mb-2">Space Map</small>
+        ${renderParkingSlots(area.availableSpaces, area.totalSpaces)}
+      </div>
+    </div>
+  `;
+
+  document.getElementById("accessChecks").innerHTML = result.checks.map(c => `
+    <div class="check-row ${c.passed ? 'check-pass' : 'check-fail'}">
+      <div class="d-flex justify-content-between">
+        <strong>${c.label}</strong>
+        <span class="badge ${c.passed ? 'bg-success' : 'bg-danger'}">${c.passed ? 'OK' : 'Issue'}</span>
+      </div>
+      <small class="text-muted">${c.detail}</small>
+    </div>
+  `).join("");
+
+  document.getElementById("parkingDecision").innerHTML = `
+    <div class="${result.decisionClass} p-4 text-center">
+      <h4 class="fw-bold mb-3">${result.decision}</h4>
+      <p class="mb-0">${result.message}</p>
+    </div>
+  `;
+}
+
+render();
