@@ -1,0 +1,59 @@
+body { background: #f8fafc; }
+
+.page-header {
+  background: linear-gradient(135deg, #0f766e, #14b8a6);
+  color: #fff;
+  border-radius: 12px;
+}
+
+.info-card {
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.edit-panel {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+}
+
+.decision-approved {
+  background: #ecfdf5;
+  border: 2px solid #10b981;
+  border-radius: 12px;
+}
+
+.decision-denied {
+  background: #fef2f2;
+  border: 2px solid #ef4444;
+  border-radius: 12px;
+}
+
+.decision-warning {
+  background: #fffbeb;
+  border: 2px solid #f59e0b;
+  border-radius: 12px;
+}
+
+.check-item {
+  padding: 10px 14px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  background: #f1f5f9;
+}
+
+.check-pass { border-left: 4px solid #10b981; }
+.check-fail { border-left: 4px solid #ef4444; }
+
+.back-btn {
+  color: #fff;
+  text-decoration: none;
+  opacity: 0.85;
+  font-size: 0.9rem;
+}
+
+.back-btn:hover {
+  color: #fff;
+  opacity: 1;
+}
